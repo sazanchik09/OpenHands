@@ -7,6 +7,7 @@ import {
   type AutonomyLevel,
   type DoPlan,
   type OpenHandsExecutionResult,
+  type OpenHandsTask,
 } from "#/do";
 
 const QUICK_STARTS = [
@@ -50,7 +51,7 @@ export default function DoHome() {
   const runPlan = async () => {
     if (!createdGoal || !plan || runState === "running") return;
 
-    const { dispatch, execute } = dispatchPlan(createdGoal, plan, localExecutor);
+    const { dispatch } = dispatchPlan(createdGoal, plan, localExecutor);
 
     if (dispatch.tasks.length === 0) {
       setRunState("waiting");
