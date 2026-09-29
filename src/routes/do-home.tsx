@@ -70,17 +70,45 @@ export default function DoHome() {
 
     const nextResults: OpenHandsExecutionResult[] = [];
     for (let index = 0; index < dispatch.tasks.length; index += 1) {
-      const [result] = await Promise.all([executeStep(dispatch.tasks[index]), Promise.resolve()]);
+      let result = await executeStep(dispatch.tasks[index]);
       nextResults.push(result);
       setResults([...nextResults]);
+
+      if (result.status === "queued" && result.externalRunId) {
+        setRunState("queued");
+        result = await pollExternalRun(result);
+        nextResults[nextResults.length - 1] = result;
+        setResults([...nextResults]);
+      }
+
       if (result.status === "failed") {
         setRunState("failed");
         return;
       }
+
+      setRunState("running");
       setCompletedSteps(index + 1);
     }
 
     setRunState(nextResults.some((result) => result.status === "queued") ? "queued" : "completed");
+  };
+
+  const pollExternalRun = async (initial: OpenHandsExecutionResult) => {
+    if (!initial.statusUrl) return initial;
+    const endpoint = initial.statusUrl.startsWith("http")
+      ? initial.statusUrl
+      : new URL(initial.statusUrl, configuredExecutorEndpoint ?? window.location.origin).toString();
+
+    for (let attempt = 0; attempt < 120; attempt += 1) {
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+      const response = await fetch(endpoint);
+      if (!response.ok) {
+        return { ...initial, status: "failed" as const, message: `Status request failed (${response.status}).` };
+      }
+      const body = (await response.json()) as OpenHandsExecutionResult;
+      if (body.status === "completed" || body.status === "failed") return body;
+    }
+    return { ...initial, status: "failed" as const, message: "Run timed out after 120 seconds." };
   };
 
   const executeStep = async (task: OpenHandsTask) =>
