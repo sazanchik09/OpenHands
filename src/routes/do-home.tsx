@@ -1,7 +1,7 @@
 import { Form, useNavigation } from "react-router";
 import { useState } from "react";
-import { ArrowUp, CheckCircle2, Clock3, Sparkles } from "lucide-react";
-import { createGoal, type AutonomyLevel } from "#/do";
+import { ArrowUp, CheckCircle2, Clock3, ShieldCheck, Sparkles } from "lucide-react";
+import { createGoal, createPlan, type AutonomyLevel, type DoPlan } from "#/do";
 
 const QUICK_STARTS = [
   "Take care of my inbox",
@@ -15,10 +15,13 @@ export default function DoHome() {
   const [instruction, setInstruction] = useState("");
   const [autonomy, setAutonomy] = useState<AutonomyLevel>("prepare");
   const [createdGoal, setCreatedGoal] = useState<ReturnType<typeof createGoal> | null>(null);
+  const [plan, setPlan] = useState<DoPlan | null>(null);
 
   const submit = () => {
     if (!instruction.trim()) return;
-    setCreatedGoal(createGoal({ instruction: instruction.trim(), autonomy }));
+    const goal = createGoal({ instruction: instruction.trim(), autonomy });
+    setCreatedGoal(goal);
+    setPlan(createPlan(goal));
   };
 
   const busy = navigation.state !== "idle";
@@ -101,18 +104,41 @@ export default function DoHome() {
           </div>
         </section>
 
-        {createdGoal ? (
+        {createdGoal && plan ? (
           <section className="rounded-2xl border border-border-subtle bg-surface p-5">
             <div className="flex items-start gap-3">
               <CheckCircle2 className="mt-0.5 text-success" size={20} />
               <div>
-                <p className="font-medium text-content-2">Goal created</p>
+                <p className="font-medium text-content-2">Plan ready</p>
                 <p className="mt-1 text-sm text-text-secondary">{createdGoal.instruction}</p>
               </div>
             </div>
+
+            <div className="mt-5 space-y-3">
+              {plan.steps.map((item, index) => (
+                <div key={item.id} className="flex gap-3 rounded-xl bg-surface-raised p-4">
+                  <div className="flex size-7 shrink-0 items-center justify-center rounded-full bg-tertiary text-xs font-medium">
+                    {index + 1}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <p className="text-sm font-medium text-content-2">{item.title}</p>
+                      {item.requiresApproval ? (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-warning/10 px-2 py-0.5 text-[11px] text-warning">
+                          <ShieldCheck size={12} />
+                          Approval
+                        </span>
+                      ) : null}
+                    </div>
+                    <p className="mt-1 text-sm leading-6 text-text-secondary">{item.description}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+
             <div className="mt-5 grid gap-3 sm:grid-cols-3">
               <div className="rounded-xl bg-surface-raised p-3">
-                <p className="text-xs text-text-dim">Status</p>
+                <p className="text-xs text-text-dim">Goal</p>
                 <p className="mt-1 text-sm capitalize">{createdGoal.status}</p>
               </div>
               <div className="rounded-xl bg-surface-raised p-3">
@@ -123,14 +149,10 @@ export default function DoHome() {
                 <p className="text-xs text-text-dim">Next</p>
                 <p className="mt-1 flex items-center gap-1.5 text-sm">
                   <Clock3 size={14} />
-                  Planning
+                  Execute plan
                 </p>
               </div>
             </div>
-            <p className="mt-4 text-xs text-text-dim">
-              This first slice creates the durable DO goal. The next layer will turn it into
-              an executable plan and dispatch it to OpenHands.
-            </p>
           </section>
         ) : null}
       </div>
