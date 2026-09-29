@@ -7,6 +7,7 @@ const OPENHANDS_SESSION_API_KEY = process.env.OPENHANDS_SESSION_API_KEY ?? "";
 const OPENHANDS_LLM_MODEL = process.env.OPENHANDS_LLM_MODEL ?? "";
 const OPENHANDS_LLM_API_KEY = process.env.OPENHANDS_LLM_API_KEY ?? "";
 const OPENHANDS_LLM_BASE_URL = process.env.OPENHANDS_LLM_BASE_URL ?? "";
+const DO_GATEWAY_KEY = process.env.DO_GATEWAY_KEY ?? "";
 
 function json(res, status, body) {
   res.writeHead(status, {
@@ -138,6 +139,11 @@ const server = createServer(async (req, res) => {
   try {
     if (req.method === "OPTIONS") {
       json(res, 204, {});
+      return;
+    }
+
+    if (DO_GATEWAY_KEY && req.headers["x-do-gateway-key"] !== DO_GATEWAY_KEY) {
+      json(res, 401, { message: "Unauthorized" });
       return;
     }
 
