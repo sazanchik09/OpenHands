@@ -12,6 +12,14 @@ export interface OpenHandsExecutionResult {
   status: "queued" | "completed" | "failed";
   message: string;
   externalRunId?: string;
+  statusUrl?: string;
+}
+
+export interface OpenHandsGatewayResponse {
+  id?: string;
+  status?: "queued" | "completed" | "failed";
+  message?: string;
+  statusUrl?: string;
 }
 
 export interface OpenHandsExecutor {
@@ -104,17 +112,18 @@ export function createOpenHandsHttpExecutor(input: {
         };
       }
 
-      let body: { id?: string; message?: string } | undefined;
+      let body: OpenHandsGatewayResponse | undefined;
       try {
-        body = (await response.json()) as { id?: string; message?: string };
+        body = (await response.json()) as OpenHandsGatewayResponse;
       } catch {
         // Some execution gateways return an empty 2xx response.
       }
 
       return {
-        status: "queued",
+        status: body?.status ?? "queued",
         message: body?.message ?? "Task accepted by OpenHands.",
         externalRunId: body?.id,
+        statusUrl: body?.statusUrl,
       };
     },
   };
