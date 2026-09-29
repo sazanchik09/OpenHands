@@ -99,6 +99,7 @@ async function createRun(task) {
     id: body.id ?? conversationId,
     status: "queued",
     message: "OpenHands conversation created.",
+    statusUrl: `/run/${encodeURIComponent(body.id ?? conversationId)}`,
   };
 }
 
