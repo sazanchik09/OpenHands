@@ -4,6 +4,7 @@ import {
   createGoal,
   createPlan,
   dispatchPlan,
+  createOpenHandsHttpExecutor,
   type AutonomyLevel,
   type DoPlan,
   type OpenHandsExecutionResult,
@@ -17,7 +18,9 @@ const QUICK_STARTS = [
   "Research something for me",
 ];
 
-type RunState = "idle" | "running" | "completed" | "waiting";
+type RunState = "idle" | "running" | "queued" | "completed" | "waiting" | "failed";
+
+const configuredExecutorEndpoint = import.meta.env.VITE_DO_OPENHANDS_ENDPOINT as string | undefined;
 
 const localExecutor = {
   async execute(): Promise<OpenHandsExecutionResult> {
@@ -51,7 +54,10 @@ export default function DoHome() {
   const runPlan = async () => {
     if (!createdGoal || !plan || runState === "running") return;
 
-    const { dispatch } = dispatchPlan(createdGoal, plan, localExecutor);
+    const executor = configuredExecutorEndpoint
+      ? createOpenHandsHttpExecutor({ endpoint: configuredExecutorEndpoint })
+      : localExecutor;
+    const { dispatch, execute } = dispatchPlan(createdGoal, plan, executor);
 
     if (dispatch.tasks.length === 0) {
       setRunState("waiting");
@@ -66,15 +72,21 @@ export default function DoHome() {
     for (let index = 0; index < dispatch.tasks.length; index += 1) {
       const [result] = await Promise.all([executeStep(dispatch.tasks[index]), Promise.resolve()]);
       nextResults.push(result);
-      setCompletedSteps(index + 1);
       setResults([...nextResults]);
+      if (result.status === "failed") {
+        setRunState("failed");
+        return;
+      }
+      setCompletedSteps(index + 1);
     }
 
-    setRunState("completed");
+    setRunState(nextResults.some((result) => result.status === "queued") ? "queued" : "completed");
   };
 
-  const executeStep = async (task: Parameters<typeof localExecutor.execute>[0]) =>
-    localExecutor.execute(task);
+  const executeStep = async (task: OpenHandsTask) =>
+    (configuredExecutorEndpoint
+      ? createOpenHandsHttpExecutor({ endpoint: configuredExecutorEndpoint }).execute(task)
+      : localExecutor.execute(task));
 
   const busy = runState === "running";
 
@@ -162,7 +174,7 @@ export default function DoHome() {
               <CheckCircle2 className="mt-0.5 text-success" size={20} />
               <div>
                 <p className="font-medium text-content-2">
-                  {runState === "completed" ? "Run completed" : "Plan ready"}
+                  {runState === "completed" ? "Run completed" : runState === "queued" ? "Run queued" : runState === "failed" ? "Run failed" : "Plan ready"}
                 </p>
                 <p className="mt-1 text-sm text-text-secondary">{createdGoal.instruction}</p>
               </div>
@@ -220,7 +232,9 @@ export default function DoHome() {
                 <p className="mt-1 text-xs text-text-secondary">
                   {runState === "waiting"
                     ? "Some actions are blocked until you approve them."
-                    : "Execution preview uses the DO → executor boundary. OpenHands transport is the next integration layer."}
+                    : configuredExecutorEndpoint
+                      ? "Connected to the configured OpenHands gateway endpoint."
+                      : "Local execution preview. Set VITE_DO_OPENHANDS_ENDPOINT to send tasks to an OpenHands gateway."}
                 </p>
               </div>
               <button
