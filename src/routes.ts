@@ -8,6 +8,7 @@ import {
 export default [
   layout("routes/root-layout.tsx", [
     index("routes/index-home.tsx"),
+    route("do", "routes/do-home.tsx"),
     route("conversations", "routes/home.tsx"),
     route(
       "conversations/:conversationId/panel",
